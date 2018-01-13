@@ -57,16 +57,13 @@ TestClass::memAllocate(AddrSpace* space){
 
 	cout << "Allocating physical memory" << endl;
 	int physNum = FindAndSet();
-    cout << "======================"<< physNum << endl;
-    cout << "======================"<< physNum << endl;
-    cout << "======================"<< physNum << endl;
-    cout << "======================"<< 0 << endl;
+    
     if (physNum == -1){
     	cout << "======================"<< 1 << endl;
         physNum = victimPage();
 		//ask victim addrspace to evict its page
 		//assuming no error
-		spaceTable[physNum]->evictPage(physNum);
+		//spaceTable[physNum]->evictPage(physNum);
 	}
 
     spaceTable[physNum] = space;

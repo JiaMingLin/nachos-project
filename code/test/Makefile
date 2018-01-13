@@ -80,3 +80,7 @@ sleep: sleep.o start.o
 little: little.o start.o
 	$(LD) $(LDFLAGS) start.o little.o -o little.coff
 	../bin/coff2noff little.coff little
+
+writing: writing.o start.o
+	$(LD) $(LDFLAGS) start.o writing.o -o writing.coff
+	../bin/coff2noff writing.coff writing

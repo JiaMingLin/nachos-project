@@ -37,6 +37,7 @@ class UserProgKernel : public ThreadedKernel {
     Machine *machine;
     FileSystem *fileSystem;
     TestClass *tc;
+    SynchDisk *swapSpace;
 
 #ifdef FILESYS
     SynchDisk *synchDisk;

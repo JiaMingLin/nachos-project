@@ -64,6 +64,7 @@ UserProgKernel::Initialize(SchedulerType type)
     machine = new Machine(debugUserProg);
     fileSystem = new FileSystem();
     tc = new TestClass(NumPhysPages);
+    swapSpace = new SynchDisk("SwapSpace");
 #ifdef FILESYS
     synchDisk = new SynchDisk("New SynchDisk");
 #endif // FILESYS
@@ -79,6 +80,7 @@ UserProgKernel::~UserProgKernel()
 {
     delete fileSystem;
     delete machine;
+    delete swapSpace;
 #ifdef FILESYS
     delete synchDisk;
 #endif
@@ -113,8 +115,24 @@ UserProgKernel::Run()
 		}else{
 			cout << "Thread " << execfile[n] << " initialization failed." << endl;	
 		}
-		
 	}
+
+
+	for (int i =0; i < 400; i++){
+		/*
+		char buf[PageSize];
+		for(int j=0; j < PageSize; j++ ){
+			buf[j] = j*j;
+		}
+		*/
+		swapSpace->WriteSector(i, "who am i");
+	}
+	char *data = new char[PageSize];
+    for (int i =0; i < 400; i++){
+		swapSpace->ReadSector(i, data);
+		cout << "Read data: "<< data << endl;
+	}
+
 //	Thread *t1 = new Thread(execfile[1]);
 //	Thread *t1 = new Thread("../test/test1");
 //	Thread *t2 = new Thread("../test/test2");
