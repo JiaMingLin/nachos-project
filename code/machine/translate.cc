@@ -193,7 +193,7 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
     int i;
     unsigned int vpn, offset;
     TranslationEntry *entry;
-    int pageFrame;
+    unsigned int pageFrame;
 
     DEBUG(dbgAddr, "\tTranslate " << virtAddr << (writing ? " , write" : " , read"));
 
@@ -214,13 +214,6 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 
     entry = &pageTable[vpn];
     pageFrame = entry->physicalPage;
-
-    if (pageFrame == -1){
-        RaiseException(PageFaultException, virtAddr);
-        entry = &pageTable[vpn];
-        pageFrame = entry->physicalPage;
-        DEBUG(dbgRobin, "vpn: "<< vpn << ", entry->physicalPage: " << entry->physicalPage);
-    }
     
     if (tlb == NULL) {		// => page table => vpn is index into table
 	    if (vpn >= pageTableSize) {

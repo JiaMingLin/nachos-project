@@ -22,21 +22,45 @@
 // All rights reserved.  See copyright.h for copyright notice and limitation 
 // of liability and disclaimer of warranty provisions.
 
-#ifndef PRACTICE_H
-#define PRACTICE_H
+#ifndef MEMORYMANAGER_H
+#define MEMORYMANAGER_H
 
 #include "copyright.h"
+#include "machine.h"
 
 
-class Practice {
+enum ReplacementType {
+	FIFO,
+	RANDOM,
+	LRU
+};
+
+class MemoryManager {
   public:
-    Practice();	
-    ~Practice();
+    MemoryManager();
+    MemoryManager(ReplacementType evictMethod);
+    ~MemoryManager();
 
-    int Translate(int virtAddr);
+    unsigned int PageFindAndSet(int virtAddr);
+
+    unsigned int AddrToPage(int addr);
+    unsigned int Offset(int addr);
+
+    unsigned int PageToAddr(int num, int offset);
 
   private:
+  	ReplacementType evictMethod;
+
+  	// (frame, sector) pair, len = 32
+  	int* frameTable[NumPhysPages];
+
+  	// (sector, -1/physFrame ) 
+  	int* sectorTable[NumSectors]; 
+
+  	int FindVictim();
+
+  	void LoadSectorToMain(int secNum, int physFrame);
 
 };
 
-#endif 
+#endif

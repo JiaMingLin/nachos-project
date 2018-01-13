@@ -63,8 +63,10 @@ UserProgKernel::Initialize(SchedulerType type)
 
     machine = new Machine(debugUserProg);
     fileSystem = new FileSystem();
-    tc = new TestClass(NumPhysPages);
-    swapSpace = new SynchDisk("SwapSpace");
+
+    mm = new MemoryManager();
+    backingStore = new SynchDisk("BackingStore");
+
 #ifdef FILESYS
     synchDisk = new SynchDisk("New SynchDisk");
 #endif // FILESYS
@@ -80,7 +82,9 @@ UserProgKernel::~UserProgKernel()
 {
     delete fileSystem;
     delete machine;
-    delete swapSpace;
+
+    delete memorymanager;
+    delete backingStore;
 #ifdef FILESYS
     delete synchDisk;
 #endif
@@ -101,37 +105,24 @@ UserProgKernel::Run()
 {
 	cout << "Total threads number is " << execfileNum << endl;
 
-	char threadName[4];
+/*
 	for (int n=1;n<=execfileNum;n++)
 		{
-		sprintf(threadName, "%s_%d", execfile[n], n);
 
-		t[n] = new Thread(threadName);
+		t[n] = new Thread(execfile[n]);
 		t[n]->space = new AddrSpace();
 
-		if(t[n]->space->Initialize(execfile[n], threadName)){
+		if(t[n]->space->Initialize(execfile[n])){
 		    t[n]->Fork((VoidFunctionPtr) &ForkExecute, (void *)t[n]);
 		    cout << "Thread " << execfile[n] << " is executing." << endl;	
 		}else{
 			cout << "Thread " << execfile[n] << " initialization failed." << endl;	
 		}
 	}
+*/
 
-
-	for (int i =0; i < 400; i++){
-		/*
-		char buf[PageSize];
-		for(int j=0; j < PageSize; j++ ){
-			buf[j] = j*j;
-		}
-		*/
-		swapSpace->WriteSector(i, "who am i");
-	}
-	char *data = new char[PageSize];
-    for (int i =0; i < 400; i++){
-		swapSpace->ReadSector(i, data);
-		cout << "Read data: "<< data << endl;
-	}
+	
+	//Thread *t1 = new Thread(execfile[1]);
 
 //	Thread *t1 = new Thread(execfile[1]);
 //	Thread *t1 = new Thread("../test/test1");

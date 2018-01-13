@@ -17,7 +17,7 @@
 #include "machine.h"
 #include "synchdisk.h"
 #include "../threads/scheduler.h"
-#include "testclass.h"
+#include "memorymanager.h"
 
 class SynchDisk;
 class UserProgKernel : public ThreadedKernel {
@@ -36,8 +36,8 @@ class UserProgKernel : public ThreadedKernel {
 // These are public for notational convenience.
     Machine *machine;
     FileSystem *fileSystem;
-    TestClass *tc;
-    SynchDisk *swapSpace;
+    MemoryManager *mm;
+    SynchDisk *backingStore;
 
 #ifdef FILESYS
     SynchDisk *synchDisk;
