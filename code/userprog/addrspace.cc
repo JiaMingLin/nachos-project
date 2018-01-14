@@ -67,15 +67,18 @@ AddrSpace::AddrSpace()
 AddrSpace::~AddrSpace()
 {
 
+    lock->Acquire();
     if (pageTable != NULL){
 
         for (int i=0;i<numPages;i++)
             if (pageTable[i].valid) {
-                //kernel->tc->FreePage(pageTable[i].physicalPage);
+                kernel->mm->FreePage(pageTable[i]);
             }
 
         delete[] pageTable;
     }
+
+    lock->Release();
     delete exeFile;         // close file
     delete lock;
     //mm->Print();

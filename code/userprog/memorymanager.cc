@@ -92,10 +92,8 @@ MemoryManager::ReplaceOneWith(TranslationEntry entry){
 	// TODO: check the victimSector is dirty or not.
 		// if dirty, write back to disk.
 	char* dataBuf = new char[PageSize];
-	bcopy(&(kernel->machine->mainMemory[PageToAddr(victimPhysPage)]),
-		  PageSize,
-		  dataBuf);
-	kernel->backingStore->Writeector(victimSector, dataBuf);
+	bcopy(&(kernel->machine->mainMemory[PageToAddr(victimPhysPage)]), &dataBuf[0], PageSize);
+	kernel->backingStore->WriteSector(victimSector, dataBuf);
 
 	// replace the content in mainMemory from sector
 	kernel->backingStore->ReadSector(replaceSector, 
@@ -116,6 +114,14 @@ MemoryManager::ReplaceOneWith(TranslationEntry entry){
 void
 MemoryManager::FreePage(TranslationEntry entry){
 
+	// find the frame by sector
+	int frameNum = bsTable[entry.physicalPage];
+
+	// clear bsTable
+	bsTable[entry.physicalPage] = -1;
+
+	// clear frameTable
+	frameTable[frameNum] = -1;
 }
 
 
