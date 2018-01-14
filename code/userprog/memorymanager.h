@@ -48,6 +48,8 @@ class MemoryManager {
 
     bool ReplaceOneWith(TranslationEntry entry);
 
+    void SetToDirty(TranslationEntry *entry);
+
     void FreePage(TranslationEntry entry);
 
     unsigned int AddrToPage(int addr);
@@ -60,10 +62,12 @@ class MemoryManager {
   	ReplacementType evictMethod;
 
   	// (frame, sector) pair, len = 32
-  	unsigned int frameTable[NumPhysPages];
+  	int frameTable[NumPhysPages];
 
   	// (sector, -1/physFrame ) 
-  	unsigned int bsTable[NumSectors]; 
+  	int bsTable[NumSectors]; 
+
+    bool dirtyEntryList[NumSectors];
 
   	unsigned int FindVictim();
 

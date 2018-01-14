@@ -34,7 +34,7 @@ Statistics::Statistics()
 void
 Statistics::Print()
 {
-    /*
+
     cout << "Ticks: total " << totalTicks << ", idle " << idleTicks;
 		cout << ", system " << systemTicks << ", user " << userTicks <<"\n";
     cout << "Disk I/O: reads " << numDiskReads;
@@ -44,5 +44,4 @@ Statistics::Print()
     cout << "Paging: faults " << numPageFaults << "\n";
     cout << "Network I/O: packets received " << numPacketsRecvd;
 		cout << ", sent " << numPacketsSent << "\n";
-    */
 }

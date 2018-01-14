@@ -257,8 +257,11 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 	return BusErrorException;
     }
     entry->use = TRUE;		// set the use, dirty bits
-    if (writing)
-	entry->dirty = TRUE;
+    if (writing){
+        entry->dirty = TRUE;
+        kernel->mm->SetToDirty(entry);
+    }
+	
     *physAddr = pageFrame * PageSize + offset;
     ASSERT((*physAddr >= 0) && ((*physAddr + size) <= MemorySize));
     DEBUG(dbgAddr, "phys addr = " << *physAddr);

@@ -10,6 +10,10 @@ MemoryManager::MemoryManager(){
 		bsTable[i] = -1;
 	}
 
+	for (int i = 0; i < NumSectors; i++){
+		dirtyEntryList[i] = FALSE;
+	}
+
 }
 
 void
@@ -91,9 +95,12 @@ MemoryManager::ReplaceOneWith(TranslationEntry entry){
 
 	// TODO: check the victimSector is dirty or not.
 		// if dirty, write back to disk.
-	char* dataBuf = new char[PageSize];
-	bcopy(&(kernel->machine->mainMemory[PageToAddr(victimPhysPage)]), &dataBuf[0], PageSize);
-	kernel->backingStore->WriteSector(victimSector, dataBuf);
+	if (dirtyEntryList[victimSector]){
+		char* dataBuf = new char[PageSize];	
+		bcopy(&(kernel->machine->mainMemory[PageToAddr(victimPhysPage)]), &dataBuf[0], PageSize);
+		kernel->backingStore->WriteSector(victimSector, dataBuf);
+		dirtyEntryList[victimSector] = FALSE;
+	}
 
 	// replace the content in mainMemory from sector
 	kernel->backingStore->ReadSector(replaceSector, 
@@ -110,6 +117,11 @@ MemoryManager::ReplaceOneWith(TranslationEntry entry){
 
 }
 
+void
+MemoryManager::SetToDirty(TranslationEntry *entry){
+	entry->dirty = TRUE;
+	dirtyEntryList[entry->physicalPage] = TRUE;
+}
 
 void
 MemoryManager::FreePage(TranslationEntry entry){
