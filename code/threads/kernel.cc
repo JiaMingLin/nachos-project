@@ -53,11 +53,12 @@ ThreadedKernel::Initialize() {
 void
 ThreadedKernel::Initialize(SchedulerType type)
 {
+    DEBUG(dbgRobin, "Entering Thread Kernel");
+
     stats = new Statistics();   // collect statistics
     interrupt = new Interrupt;    // start up interrupt handling
     scheduler = new Scheduler(type);  // initialize the ready queue
     alarm = new Alarm(randomSlice); // start up time slicing
-    //tc = new TestClass(32);
 
     // We didn't explicitly allocate the current thread we are running in.
     // But if it ever tries to give up the CPU, we better have a Thread

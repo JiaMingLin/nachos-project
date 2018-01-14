@@ -43,6 +43,7 @@ class SynchDisk : public CallBackObj {
     void CallBack();			// Called by the disk device interrupt
 					// handler, to signal that the
 					// current disk operation is complete.
+    int FindAndSet();
 
   private:
     Disk *disk;		  		// Raw disk device
@@ -50,6 +51,8 @@ class SynchDisk : public CallBackObj {
 					// with the interrupt handler
     Lock *lock;		  		// Only one read/write request
 					// can be sent to the disk at a time
+
+    int sectorTable[NumSectors];
 };
 
 #endif // SYNCHDISK_H

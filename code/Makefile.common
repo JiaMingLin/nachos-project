@@ -86,8 +86,6 @@ THREAD_O = bitmap.o debug.o libtest.o sysdep.o interrupt.o stats.o timer.o \
 	elevatortest.o 
 
 USERPROG_H = ../userprog/addrspace.h\
-    ../userprog/backingstore.h\
-    ../userprog/testclass.h\
 	../userprog/userkernel.h\
 	../userprog/syscall.h\
 	../userprog/memorymanager.h\
@@ -104,8 +102,6 @@ USERPROG_H = ../userprog/addrspace.h\
 USERPROG_C = ../userprog/addrspace.cc\
         ../userprog/exception.cc\
 	../userprog/synchconsole.cc\
-	../userprog/backingstore.cc\
-	../userprog/testclass.cc\
 	../userprog/memorymanager.cc\
 	../userprog/userkernel.cc\
         ../machine/console.cc\
@@ -115,8 +111,8 @@ USERPROG_C = ../userprog/addrspace.cc\
 	../filesys/synchdisk.cc\
 	../machine/disk.cc
 
-USERPROG_O = addrspace.o testclass.o exception.o synchconsole.o console.o machine.o \
-        mipssim.o translate.o userkernel.o synchdisk.o disk.o backingstore.o memorymanager.o
+USERPROG_O = addrspace.o exception.o synchconsole.o console.o machine.o \
+        mipssim.o translate.o userkernel.o synchdisk.o disk.o memorymanager.o
 
 FILESYS_H = ../filesys/directory.h\
         ../filesys/filehdr.h\

@@ -48,7 +48,7 @@
 //	are in machine.h.
 //----------------------------------------------------------------------
 
-Lock* memoryPagingLock = NULL;
+
 
 void
 ExceptionHandler(ExceptionType which)
@@ -66,7 +66,7 @@ ExceptionHandler(ExceptionType which)
 		    break;
 		case SC_PrintInt:
 			val=kernel->machine->ReadRegister(4);
-			cout << "Print integer:" <<val << endl;
+			cout << "Print integer: " <<val << endl;
 			return;
 		case SC_Sleep:
     		val=kernel->machine->ReadRegister(4);
@@ -95,22 +95,16 @@ ExceptionHandler(ExceptionType which)
 	}
 	case PageFaultException:
     {
-	    if (memoryPagingLock == NULL){
-            memoryPagingLock = new Lock("memoryPagingLock");
-	    }
-
         int virtualPageNum = (unsigned)kernel->machine->ReadRegister(BadVAddrReg)/PageSize;
-        
-        memoryPagingLock->Acquire();
+        DEBUG(dbgRobin, "PageFaultException at virtPage = " << virtualPageNum);
 		kernel->currentThread->space->pageFault(virtualPageNum);
-        memoryPagingLock->Release();
 
-        break;
+        return;
     }
 	default:
 	    cerr << "Unexpected user mode exception" << which << "\n";
 	    ASSERT(FALSE);
 	    break;
     }
-    //ASSERTNOTREACHED();
+    ASSERTNOTREACHED();
 }

@@ -95,8 +95,7 @@ Machine::ReadMem(int addr, int size, int *value)
     exception = Translate(addr, &physicalAddress, size, FALSE);
     if (exception != NoException) {
 	    RaiseException(exception, addr);
-	    if (exception != PageFaultException)
-            return FALSE;
+        return FALSE;
     }
 
     switch (size) {
@@ -147,8 +146,7 @@ Machine::WriteMem(int addr, int size, int value)
 
     if (exception != NoException) {
         RaiseException(exception, addr);
-        if (exception != PageFaultException)
-            return FALSE;
+        return FALSE;
     }
 
     switch (size) {
@@ -193,7 +191,7 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
     int i;
     unsigned int vpn, offset;
     TranslationEntry *entry;
-    unsigned int pageFrame;
+    int pageFrame;
 
     DEBUG(dbgAddr, "\tTranslate " << virtAddr << (writing ? " , write" : " , read"));
 
@@ -213,7 +211,17 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
     offset = (unsigned) virtAddr % PageSize;
 
     entry = &pageTable[vpn];
-    pageFrame = entry->physicalPage;
+    //pageFrame = entry->physicalPage;
+    pageFrame = kernel->mm->FindFrame(pageTable[vpn]);
+
+    // page faults, page is in sector but not in mainMemory
+    if (pageFrame == -1){
+        // raising page fault exception to evict a page.
+        RaiseException(PageFaultException, virtAddr);
+        // assume the page and sector is mapped.
+        // the required page should be bringed in.
+        pageFrame = kernel->mm->FindFrame(pageTable[vpn]);
+    }
     
     if (tlb == NULL) {		// => page table => vpn is index into table
 	    if (vpn >= pageTableSize) {

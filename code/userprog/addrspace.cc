@@ -56,7 +56,7 @@ SwapHeader (NoffHeader *noffH)
 AddrSpace::AddrSpace()
 {
     pageTable = NULL;
-    backingStore = NULL;
+    lock = new Lock("AddrSpaceLock");
 }
 
 //----------------------------------------------------------------------
@@ -70,113 +70,16 @@ AddrSpace::~AddrSpace()
     if (pageTable != NULL){
 
         for (int i=0;i<numPages;i++)
-            if (pageTable[i].valid) 
-                kernel->tc->FreePage(pageTable[i].physicalPage);
+            if (pageTable[i].valid) {
+                //kernel->tc->FreePage(pageTable[i].physicalPage);
+            }
 
         delete[] pageTable;
     }
     delete exeFile;         // close file
-
+    delete lock;
     //mm->Print();
-    
-    if (backingStore) delete backingStore;
 }
-
-
-//----------------------------------------------------------------------
-// AddrSpace::Load
-// 	Load a user program into memory from a file.
-//
-//	Assumes that the page table has been initialized, and that
-//	the object code file is in NOFF format.
-//
-//	"fileName" is the file containing the object code to load into memory
-//----------------------------------------------------------------------
-/*
-bool 
-AddrSpace::Load(char *fileName) 
-{
-    OpenFile *executable = kernel->fileSystem->Open(fileName);
-    NoffHeader noffH;
-    unsigned int size;
-
-    if (executable == NULL) {
-	cerr << "Unable to open file " << fileName << "\n";
-	return FALSE;
-    }
-    executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
-    if ((noffH.noffMagic != NOFFMAGIC) && 
-		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
-    	SwapHeader(&noffH);
-    ASSERT(noffH.noffMagic == NOFFMAGIC);
-
-// how big is address space?
-    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
-			+ UserStackSize;	// we need to increase the size
-						// to leave room for the stack
-
-    DEBUG(dbgRobin, "noffH.code.size: " << noffH.code.size);
-    DEBUG(dbgRobin, "noffH.initData.size: " << noffH.initData.size);
-    DEBUG(dbgRobin, "noffH.uninitData.size: " << noffH.uninitData.size );
-    DEBUG(dbgRobin, "UserStackSize: " << UserStackSize);
-
-    numPages = divRoundUp(size, PageSize);
-
-//	cout << "number of pages of " << fileName<< " is "<<numPages<<endl;
-    size = numPages * PageSize;
-
-    //ASSERT(usedPhysPageNum + numPages <= NumPhysPages);
-                        // check we're not trying
-						// to run anything too big --
-						// at least until we have
-						// virtual memory
-
-    DEBUG(dbgAddr, "Initializing address space: " << numPages << ", " << size);
-
-// Jiaming Add
-    // Using linear search to find an unused physical page
-    // then construct a mapping between virtual page and physical page.
-    pageTable = new TranslationEntry[numPages];
-    for(unsigned int i = 0, j = 0; i < numPages; i++) {
-        pageTable[i].virtualPage = i;
-        //while(j < NumPhysPages && AddrSpace::usedPhysPage[j] == true)
-        //    j++;
-        //AddrSpace::usedPhysPage[j] = true;
-        pageTable[i].physicalPage = j;
-        pageTable[i].valid = true;
-        pageTable[i].use = false;
-        pageTable[i].dirty = false;
-        pageTable[i].readOnly = false;
-    }
-
-// Jiaming Add End
-
-
-// then, copy in the code and data segments into memory
-	if (noffH.code.size > 0) {
-        DEBUG(dbgAddr, "Initializing code segment.");
-        DEBUG(dbgAddr, "Virtual address: " << noffH.code.virtualAddr << ", code size: " << noffH.code.size);
-
-        // Jiaming Add
-        executable->ReadAt(
-            &(kernel->machine->mainMemory[CalculateMemAddr(noffH.code.virtualAddr)]), 
-            noffH.code.size, noffH.code.inFileAddr);
-
-    }
-    if (noffH.initData.size > 0) {
-        DEBUG(dbgAddr, "Initializing data segment.");
-        DEBUG(dbgAddr, noffH.initData.virtualAddr << ", " << noffH.initData.size);
-
-        // Jiaming Add
-        executable->ReadAt(
-            &(kernel->machine->mainMemory[CalculateMemAddr(noffH.initData.virtualAddr)]),
-            noffH.initData.size, noffH.initData.inFileAddr);
-    }
-
-    delete executable;			// close file
-    return TRUE;			// success
-}
-*/
 
 //----------------------------------------------------------------------
 // AddrSpace::CalculateMemAddr
@@ -197,41 +100,32 @@ AddrSpace::CalculateMemAddr(int virtualAddr)
 }
 
 
-int AddrSpace::pageFault(int vpn) {
+void AddrSpace::pageFault(int vpn) {
+    lock->Acquire();
     kernel->stats->numPageFaults++;
-    pageTable[vpn].physicalPage = kernel->tc->memAllocate(this);
-    //pageTable[vpn].physicalPage = kernel->mm->AllocPage(this,vpn);
-    if (pageTable[vpn].physicalPage == -1){
-        printf("Error: run out of physical memory\n");
-        //to do://should yield and wait for memory space and try again?
-        ASSERT(FALSE);//panic at this time
+    
+    if (!kernel->mm->ReplaceOneWith(pageTable[vpn])){
+        DEBUG(dbgRobin, "Replace Page Failed, Abort");
+        ASSERT(FALSE);
     }
-
-    if(backingStore->PageIn(&pageTable[vpn])==-1)
-        LoadPage(vpn);
-    
-    pageTable[vpn].valid = TRUE;
-    pageTable[vpn].use = FALSE;
-    pageTable[vpn].dirty = FALSE;
-    //pageTable[vpn].readOnly is modified in loadPage()
-
-    DEBUG(dbgRobin, "virtual page: "<< vpn << "; physical page: " << pageTable[vpn].physicalPage);
-    
-    return 0;
+    lock->Release();
 }
 
 bool
-AddrSpace::Initialize(char *fileName, char *threadName)
+AddrSpace::Initialize(char *threadName)
 {
     // open file
-    exeFile = kernel->fileSystem->Open(fileName);
+    exeFile = kernel->fileSystem->Open(threadName);
     unsigned int size;
 
     // validate file
     if (exeFile == NULL) {
-    cerr << "Unable to open file " << fileName << "\n";
-    return FALSE;
+        cerr << "Unable to open file " << threadName << "\n";
+        return FALSE;
     }
+
+
+
     exeFile->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if ((noffH.noffMagic != NOFFMAGIC) && 
         (WordToHost(noffH.noffMagic) == NOFFMAGIC))
@@ -243,6 +137,11 @@ AddrSpace::Initialize(char *fileName, char *threadName)
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
             + UserStackSize;    // we need to increase the size
                         // to leave room for the stack
+    
+    // continueous segment data, no bubbles.
+    char* dataBuf = new char[size];
+    //bzero(&dataBuf[0], size);
+    exeFile->ReadAt(&dataBuf[0], size, noffH.code.inFileAddr);
 
     // calculate page number
     numPages = divRoundUp(size, PageSize);
@@ -254,29 +153,75 @@ AddrSpace::Initialize(char *fileName, char *threadName)
 
     for(unsigned int i = 0; i < numPages; i++) {
         pageTable[i].virtualPage = i;
-        pageTable[i].physicalPage = -1;
+        pageTable[i].physicalPage = LoadToSector(i, dataBuf);
         pageTable[i].valid = true;
         pageTable[i].use = false;
         pageTable[i].dirty = false;
         pageTable[i].readOnly = false;
     }
+    
+    DEBUG(dbgRobin, "noffH.code.inFileAddr: " << noffH.code.inFileAddr);
+    DEBUG(dbgRobin, "noffH.code.virtualAddr: " << noffH.code.virtualAddr);
     DEBUG(dbgRobin, "noffH.code.size: " << noffH.code.size);
+
+    DEBUG(dbgRobin, "noffH.initData.inFileAddr: " << noffH.initData.inFileAddr);
+    DEBUG(dbgRobin, "noffH.initData.virtualAddr: " << noffH.initData.virtualAddr);
     DEBUG(dbgRobin, "noffH.initData.size: " << noffH.initData.size);
+
+    DEBUG(dbgRobin, "noffH.uninitData.inFileAddr: " << noffH.uninitData.inFileAddr);
+    DEBUG(dbgRobin, "noffH.uninitData.virtualAddr: " << noffH.uninitData.virtualAddr);
     DEBUG(dbgRobin, "noffH.uninitData.size: " << noffH.uninitData.size );
+
     DEBUG(dbgRobin, "UserStackSize: " << UserStackSize);
     DEBUG(dbgRobin, "page number: " << numPages);
 
     //exeFile->ReadAt(&(kernel->machine->mainMemory[noffH.code.virtualAddr]), PageSize*5, noffH.code.inFileAddr);
 
-    // create backingstore
-    backingStore = new BackingStore(this, numPages, threadName);
-
-    
-
-
+    //LoadToMainMem();
     return TRUE;
 }
 
+
+unsigned int 
+AddrSpace::LoadToSector(unsigned int virtPage, char *dataBuf){
+    // find an unused sector
+    int freeSector = kernel->backingStore->FindAndSet();
+    if (freeSector == -1){
+        // TODO: Raising exception;
+        cout << "No free sectors." << endl;
+        ASSERT(FALSE);
+    }
+
+    // read the executable file by using
+        // target: an char array
+        // size = PageSize
+        // begin = segment.inFileAddr + virtPage*PageSize
+    char data[PageSize];
+    int virtAddr = kernel->mm->PageToAddr(virtPage);
+
+    bcopy(&dataBuf[virtAddr], &data[0], PageSize);
+
+    // Load to sector
+    DEBUG(dbgRobin, "Writing page = " << virtPage << " to sector = " << freeSector);
+    kernel->backingStore->WriteSector(freeSector, data);
+    return (unsigned)freeSector;
+
+}
+
+void 
+AddrSpace::LoadToMainMem(){
+    // for each (virtPage, sector), loading frame to mainMemory by using sector.
+        // read a data of length PageSize from sector.
+        // copy the data to mainMemory, starting from mainMemory[addr = virtPage*PageSize]
+    for (int i=0; i < numPages; i++){
+        int virtPage = pageTable[i].virtualPage;
+        int sectorNum = pageTable[i].physicalPage;
+
+        int frameNum = kernel->mm->FindFrame(pageTable[i]);
+
+        kernel->backingStore->ReadSector(sectorNum, &(kernel->machine->mainMemory[virtPage*PageSize]));
+    }
+}
 //----------------------------------------------------------------------
 // AddrSpace::Execute
 // 	Run a user program.  Load the executable into memory, then
@@ -358,138 +303,4 @@ void AddrSpace::RestoreState()
 {
     kernel->machine->pageTable = pageTable;
     kernel->machine->pageTableSize = numPages;
-}
-
-//determine which segment does a address located in
-//return value: 
-int AddrSpace::whichSeg(int virtAddr, Segment* segPtr) {
-    if (noffH.code.size > 0) {
-        if (( virtAddr >= noffH.code.virtualAddr ) &&
-            ( virtAddr < noffH.code.virtualAddr + noffH.code.size ))
-        {
-            ( *segPtr ) = noffH.code;
-            return 0;
-        }
-    }
-    if (noffH.initData.size > 0) {
-        if (( virtAddr >= noffH.initData.virtualAddr ) &&
-            ( virtAddr < noffH.initData.virtualAddr + noffH.initData.size ))
-        {
-            ( *segPtr ) = noffH.initData;
-            return 1;
-        }
-    }
-    if (noffH.uninitData.size > 0) {
-        if (( virtAddr >= noffH.uninitData.virtualAddr ) &&
-            ( virtAddr < noffH.uninitData.virtualAddr + noffH.uninitData.size ))
-        {
-            ( *segPtr ) = noffH.uninitData;
-            return 2;
-        }
-    }
-    return 3;
-}
-
-/*
-Read the executable file by segment and put into mainMemory
-
-int
-AddrSpace::LoadPage(int vpn){
-    DEBUG(dbgRobin, "Loading page " << vpn << " from executable file.");
-    int readAddr, physAddr, size, segOffs;
-    int virtAddr = vpn * PageSize;
-    physAddr = pageTable[vpn].physicalPage * PageSize;
-
-    int segBegin = noffH.code.inFileAddr + physAddr * PageSize;
-
-    //DEBUG(dbgRobin, "Virtual address: " << noffH.code.virtualAddr << ", code size: " << noffH.code.size << ", inFileAddr: " << noffH.code.inFileAddr);
-    // read a size of page.
-    exeFile->ReadAt(&(kernel->machine->mainMemory[noffH.code.virtualAddr]), PageSize, segBegin);
-
-    return 0;
-}
-*/
-
-//assume there's no bubble in the exe file.
-//Because when the first address in the page is not in code, initData or uninitData segment, 
-//the whole page will be zero-filled
-
-int AddrSpace::LoadPage(int vpn) {
-    DEBUG(dbgRobin, "Loading page " << vpn << " from executable file.");
-
-    int readAddr, physAddr, size, segOffs;
-    int virtAddr = vpn * PageSize;
-    int offs = 0;
-    int ps = PageSize;
-    Segment seg;
-    bool readFromFile=FALSE;
-    
-    pageTable[vpn].readOnly = FALSE;
-    do {
-        physAddr = pageTable[vpn].physicalPage * PageSize + offs;
-        switch (whichSeg(virtAddr, &seg)) {
-        case 0://code
-        {
-            segOffs = virtAddr - seg.virtualAddr;
-            readAddr = segOffs + seg.inFileAddr;
-            size = min(ps - offs, seg.size - segOffs);
-            exeFile->ReadAt(&( kernel->machine->mainMemory[physAddr] ), size, readAddr);
-            readFromFile=TRUE;
-            if (size==PageSize){
-                pageTable[vpn].readOnly = TRUE;
-            }
-            if (vpn==1)
-                ASSERT(kernel->machine->mainMemory[physAddr]==7);
-            break;
-        }
-        case 1://initData
-        {
-            segOffs = virtAddr - seg.virtualAddr;
-            readAddr = segOffs + seg.inFileAddr;
-            size = min(ps - offs, seg.size - segOffs);
-            exeFile->ReadAt(&( kernel->machine->mainMemory[physAddr] ), size, readAddr);
-            readFromFile=TRUE;
-            break;
-        }
-        case 2://uninitData
-        {
-            size = min(ps - offs, seg.size + seg.virtualAddr - virtAddr);
-            bzero(&( kernel->machine->mainMemory[physAddr] ), size);
-            break;
-        }
-        case 3://stack or others
-        {
-            bzero(&( kernel->machine->mainMemory[physAddr] ), PageSize - offs);
-            return 0;//don't use break
-        }
-        }
-        offs += size;
-        virtAddr += size;
-    } while (offs < PageSize);
-    if (readFromFile)
-        kernel->stats->numPageIns++;
-    return 0;
-}
-
-//called by memory manager
-int AddrSpace::evictPage(int physNum){
-    cout << "=========================="<<endl;
-    int vpn;
-    for (int i = 0; i < numPages; i++){
-        cout << "==========================" << i<<endl;
-        if (pageTable[i].physicalPage == physNum){
-            vpn = i;
-            break;
-        }
-    }
-    DEBUG(dbgRobin, "Evict Page: vpn = " << vpn << ", physNum = " << physNum);
-    if (pageTable[vpn].dirty){
-        backingStore->PageOut(&pageTable[vpn]);
-    }
-    pageTable[vpn].physicalPage = -1;
-    pageTable[vpn].valid = FALSE;
-    pageTable[vpn].use = FALSE;
-    pageTable[vpn].dirty = FALSE;
-
-    return 0;
 }

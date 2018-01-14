@@ -48,7 +48,7 @@ FIFOCompare(Thread *a, Thread *b) {
 }
 
 Scheduler::Scheduler(){
-    Scheduler(RR);
+    Scheduler(FCFS);
 }
 
 Scheduler::Scheduler(SchedulerType type)
@@ -114,7 +114,6 @@ Scheduler::FindNextToRun ()
     ASSERT(kernel->interrupt->getLevel() == IntOff);
 
     if (readyList->IsEmpty()) {
-        DEBUG(dbgRobin, "Ready list is empty");
 	    return NULL;
     } else {
     	return readyList->RemoveFront();

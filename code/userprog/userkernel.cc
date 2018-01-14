@@ -59,12 +59,21 @@ UserProgKernel::Initialize()
 void
 UserProgKernel::Initialize(SchedulerType type)
 {
+
+	DEBUG(dbgRobin, "Entering User Program Kernel");
     ThreadedKernel::Initialize(type);	// init multithreading
 
+    DEBUG(dbgRobin, "Machine initialize...");
     machine = new Machine(debugUserProg);
+
+    DEBUG(dbgRobin, "FileSystem initialize...");
     fileSystem = new FileSystem();
 
+    DEBUG(dbgRobin, "MemoryManager initialize...");
     mm = new MemoryManager();
+    mm->Initialize();
+
+    DEBUG(dbgRobin, "BackingStore initialize...");
     backingStore = new SynchDisk("BackingStore");
 
 #ifdef FILESYS
@@ -83,7 +92,7 @@ UserProgKernel::~UserProgKernel()
     delete fileSystem;
     delete machine;
 
-    delete memorymanager;
+    delete mm;
     delete backingStore;
 #ifdef FILESYS
     delete synchDisk;
@@ -105,7 +114,6 @@ UserProgKernel::Run()
 {
 	cout << "Total threads number is " << execfileNum << endl;
 
-/*
 	for (int n=1;n<=execfileNum;n++)
 		{
 
@@ -119,9 +127,8 @@ UserProgKernel::Run()
 			cout << "Thread " << execfile[n] << " initialization failed." << endl;	
 		}
 	}
-*/
 
-	
+
 	//Thread *t1 = new Thread(execfile[1]);
 
 //	Thread *t1 = new Thread(execfile[1]);

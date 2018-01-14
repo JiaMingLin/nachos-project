@@ -32,6 +32,10 @@ SynchDisk::SynchDisk(char* name)
     semaphore = new Semaphore("synch disk", 0);
     lock = new Lock("synch disk lock");
     disk = new Disk(name, this);
+
+    for(int i = 0; i < NumSectors; i++){
+        sectorTable[i] = -1;
+    }
 }
 
 //----------------------------------------------------------------------
@@ -93,4 +97,19 @@ void
 SynchDisk::CallBack()
 { 
     semaphore->V();
+}
+
+// find a free sector and set to be used.
+int
+SynchDisk::FindAndSet()
+{
+    for (int i =0; i<NumSectors; i++){
+        if(sectorTable[i] == -1){
+            DEBUG(dbgRobinDisk, "Free sector found at sector = " << i);
+            sectorTable[i] = 1;
+            return i;
+        }
+    }
+    DEBUG(dbgRobinDisk, "Not enough of free sectors");
+    return -1;
 }

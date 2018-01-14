@@ -1,22 +1,25 @@
 #include "copyright.h"
 #include "main.h"
 
-
 MemoryManager::MemoryManager(){
-	MemoryManager(RANDOM);
-
-}
-
-MemoryManager::MemoryManager(ReplacementType method){
-	evictMethod = method;
-
 	for (int i = 0; i < NumPhysPages; i++){
 		frameTable[i] = -1;
 	}	
 
 	for (int i = 0; i < NumSectors; i++){
-		sectorTable[i] = -1;
+		bsTable[i] = -1;
 	}
+
+}
+
+void
+MemoryManager::Initialize(){
+	Initialize(RANDOM);
+}
+
+void
+MemoryManager::Initialize(ReplacementType method){
+	evictMethod = method;
 
 	switch(evictMethod){
 		case FIFO:{
@@ -43,55 +46,104 @@ MemoryManager::~MemoryManager(){
 
 }
 
-unsigned int
-MemoryManager::PageFindAndSet(int virtAddr){
-	// addr to page number
-	unsigned int virtPage = AddrToPage(virtAddr);
+
+// Return free frame number or page fault
+int
+MemoryManager::FindFrame(TranslationEntry entry){
+	unsigned int virtPage = entry.virtualPage;
 
 	// assume (page, sector is ok)
-	TranslationEntry *entry;
-	entry = &pageTable[vpn];
-	secNum = entry->physicalPage;
+	unsigned int secNum = entry.physicalPage;
 
 	// is sec in memory?
-	if (sectorTable[secNum] != -1){
+	if (bsTable[secNum] != -1){
 		//if yes, return physAddr
-		return (unsigned)sectorTable[secNum];
+		DEBUG(dbgRobinDisk, "virtPage = " << virtPage << ", secNum = " << secNum << ", frame = " << bsTable[secNum]);
+		return bsTable[secNum];
 	}
 
-	// page faults
-	RaiseException(PageFaultException, virtAddr);
+	// is there a free frame?
+	for (int i=0; i < NumPhysPages; i++){
+		if (frameTable[i] == -1){
+			DEBUG(dbgRobin, "Free frame = " << i << " for sector = " << secNum);
+			frameTable[i] = secNum;
+			bsTable[secNum] = i;
 
-	return (unsigned)sectorTable[secNum];
+			// Load data to mainMemory
+			kernel->backingStore->ReadSector(secNum, 
+				&(kernel->machine->mainMemory[PageToAddr(i)]));
+			return i;
+		}
+	}
+
+	// page fault
+	return -1;
 }
 
-int
+bool
+MemoryManager::ReplaceOneWith(TranslationEntry entry){
+	// find victim
+	int victimPhysPage = FindVictim();
+
+	int victimSector = frameTable[victimPhysPage];
+	
+	int replaceSector = entry.physicalPage;
+
+	// TODO: check the victimSector is dirty or not.
+		// if dirty, write back to disk.
+	char* dataBuf = new char[PageSize];
+	bcopy(&(kernel->machine->mainMemory[PageToAddr(victimPhysPage)]),
+		  PageSize,
+		  dataBuf);
+	kernel->backingStore->Writeector(victimSector, dataBuf);
+
+	// replace the content in mainMemory from sector
+	kernel->backingStore->ReadSector(replaceSector, 
+		&(kernel->machine->mainMemory[PageToAddr(victimPhysPage)]));
+
+	// update the frameTable
+	frameTable[victimPhysPage] = replaceSector;
+
+	// update the bsTable
+	bsTable[victimSector] = -1;
+	bsTable[replaceSector] = victimPhysPage;
+
+	return TRUE;
+
+}
+
+
+void
+MemoryManager::FreePage(TranslationEntry entry){
+
+}
+
+
+unsigned int
 MemoryManager::AddrToPage(int addr){
 	return (unsigned) addr / PageSize;
 }
 
-int
+unsigned int
 MemoryManager::Offset(int addr){
 	return (unsigned) addr % PageSize;
 }
 
-int
-MemoryManager::PageToAddr(int num, int offset){
-	return num*PageSize + offset;
+unsigned int 
+MemoryManager::PageToAddr(int num){
+	return PageToAddr(num, 0);
 }
 
-int 
+unsigned int
+MemoryManager::PageToAddr(int num, int offset){
+	return (unsigned)num*PageSize + offset;
+}
+
+unsigned int 
 MemoryManager::FindVictim(){
 
 	int victimPhysPage = RandomNumber() % NumPhysPages;
-
-	int outSecNum = frameTable[victimPhysPage];
-
-	// TODO: check the frame is dirty or not.
-
-	// the evicted sector/frame is not in mainMemory
-	sectorTable[outSecNum] = -1;
-
-	return victimPhysPage;
+	return (unsigned)victimPhysPage;
 
 }
+

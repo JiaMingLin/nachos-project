@@ -17,10 +17,10 @@
 #include "filesys.h"
 #include <string.h>
 #include "noff.h"
-#include "backingstore.h"
 
 #define UserStackSize		1024 	// increase this as necessary!
 
+class Lock;
 
 class AddrSpace {
   public:
@@ -33,9 +33,9 @@ class AddrSpace {
     void SaveState();			// Save/restore address space-specific
     void RestoreState();		// info on a context switch 
 
-    int pageFault(int virtualPageNum);
+    void pageFault(int virtualPageNum);
 
-    bool Initialize(char *fileName, char *threadName);
+    bool Initialize(char *threadName);
 
     int evictPage(int vpn);
 
@@ -50,16 +50,14 @@ class AddrSpace {
 
     // Jiaming Add
     int CalculateMemAddr(int virtualAddr);
+    unsigned int LoadToSector(unsigned int virtPage, char *dataBuf);
+    void LoadToMainMem();
     // Jiaming Add End
 
     // Add for demand paging
     NoffHeader noffH;
     OpenFile *exeFile;
-    BackingStore* backingStore;
-
-    int LoadPage(int virtualPageNum);     // Load the program into memory
-                    // return false if not found
-    int whichSeg(int virtAddr, Segment* segPtr);
+    Lock *lock;
 
 };
 

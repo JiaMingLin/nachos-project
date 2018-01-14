@@ -27,6 +27,7 @@
 
 #include "copyright.h"
 #include "machine.h"
+#include "main.h"
 
 
 enum ReplacementType {
@@ -38,26 +39,33 @@ enum ReplacementType {
 class MemoryManager {
   public:
     MemoryManager();
-    MemoryManager(ReplacementType evictMethod);
     ~MemoryManager();
 
-    unsigned int PageFindAndSet(int virtAddr);
+    void Initialize();
+    void Initialize(ReplacementType method);
+
+    int FindFrame(TranslationEntry entry);
+
+    bool ReplaceOneWith(TranslationEntry entry);
+
+    void FreePage(TranslationEntry entry);
 
     unsigned int AddrToPage(int addr);
     unsigned int Offset(int addr);
 
+    unsigned int PageToAddr(int num);
     unsigned int PageToAddr(int num, int offset);
 
   private:
   	ReplacementType evictMethod;
 
   	// (frame, sector) pair, len = 32
-  	int* frameTable[NumPhysPages];
+  	unsigned int frameTable[NumPhysPages];
 
   	// (sector, -1/physFrame ) 
-  	int* sectorTable[NumSectors]; 
+  	unsigned int bsTable[NumSectors]; 
 
-  	int FindVictim();
+  	unsigned int FindVictim();
 
   	void LoadSectorToMain(int secNum, int physFrame);
 

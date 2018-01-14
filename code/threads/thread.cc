@@ -65,13 +65,10 @@ Thread::~Thread()
 {
 
     DEBUG(dbgThread, "Deleting thread: " << name);
-    //kernel->mm->Print();
 
-    cout << "(stack != NULL) = " << (stack != NULL)<< endl;
     if (stack != NULL)
 	    DeallocBoundedArray((char *) stack, StackSize * sizeof(int));
 
-    //kernel->mm->Print();
 
 }
 
